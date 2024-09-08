@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Location</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+    <script>
+        let map;
+
+        // 지도 초기화 함수
+        function initMap() {
+            // 기본 위치 설정 (지도를 초기화할 좌표)
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 2,
+                center: { lat: 0, lng: 0 } // 초기 위치는 세계 지도를 기준으로
+            });
+        }
+
+        // 서버에서 위치 정보를 받아와서 지도에 마커로 표시하는 함수
+        function displayLocations() {
+            fetch('/locations')
+                .then(response => response.json())
+                .then(locations => {
+                    locations.forEach(location => {
+                        const marker = new google.maps.Marker({
+                            position: { lat: location.latitude, lng: location.longitude },
+                            map: map
+                        });
+                    });
+
+                    // 마지막 위치로 지도를 중심 이동
+                    if (locations.length > 0) {
+                        const lastLocation = locations[locations.length - 1];
+                        map.setCenter({ lat: lastLocation.latitude, lng: lastLocation.longitude });
+                    }
+                });
+        }
+
+        // 사용자의 위치 정보를 서버에 전송하는 함수
+        function sendLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+
+                    // 서버로 위치 정보를 POST 요청
+                    fetch('/submit-location', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            latitude: latitude,
+                            longitude: longitude
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("Location submitted:", data);
+                        // 위치를 서버에 전송한 후 지도에 마커 표시
+                        displayLocations();
+                    })
+                    .catch(error => {
+                        console.error("Error submitting location:", error);
+                    });
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+    </script>
+</head>
+<body onload="initMap()">
+    <h1>User Location Tracking</h1>
+
+    <!-- 위치 전송 버튼 -->
+    <button onclick="sendLocation()">Send Location</button>
+
+    <!-- 지도 표시할 영역 -->
+    <div id="map" style="height: 500px; width: 100%; margin-top: 20px;"></div>
+
+    <script>
+        // 페이지 로드 시 서버에서 저장된 위치 정보를 지도에 표시
+        displayLocations();
+    </script>
+</body>
+</html>
