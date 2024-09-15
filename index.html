@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR 코드 위치</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDBeRUMBGhgbfROvG0M_hPh198HvwoxFHk"></script>
+    <script>
+        let map;
+        let qrCodeId = 'some_unique_id'; // QR 코드에서 읽어온 ID
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 12,
+                center: { lat: 0, lng: 0 }
+            });
+            fetchLocation();
+            setInterval(fetchLocation, 5000); // 매 5초마다 위치 업데이트
+        }
+
+        function fetchLocation() {
+            fetch(`/get-location/${qrCodeId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.latitude && data.longitude) {
+                        const position = { lat: data.latitude, lng: data.longitude };
+                        map.setCenter(position);
+                        new google.maps.Marker({
+                            position: position,
+                            map: map
+                        });
+                    }
+                })
+                .catch(error => console.error("Error fetching location:", error));
+        }
+
+        function sendLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+
+                    fetch('/submit-location', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            qr_code_id: qrCodeId,
+                            latitude: latitude,
+                            longitude: longitude
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => console.log("Location sent:", data))
+                    .catch(error => console.error("Error sending location:", error));
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+    </script>
+</head>
+<body onload="initMap()">
+    <h1>QR 코드 위치 추적</h1>
+    <button onclick="sendLocation()">위치 전송</button>
+    <div id="map" style="height: 500px; width: 100%;"></div>
+</body>
+</html>
